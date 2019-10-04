@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zproxy-deployment
+  labels:
+    app: zproxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zproxy
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      name: zproxy-template
+      labels:
+        app: zproxy
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:5.6
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "unix11"
+        volumeMounts:
+        - name: db
+          mountPath: "/var/lib/mysql/"
+        ports:
+          - containerPort: 3306
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+      - name: zproxy
+        #image: zabbix/zabbix-proxy-mysql:centos-4.0.13
+        image: zabbix/zabbix-proxy-mysql:ubuntu-4.0-latest
+        env:
+        - name: DB_SERVER_HOST
+          value: "zproxy-db-service"
+        - name: MYSQL_USER
+          value: "root"
+        - name: MYSQL_PASSWORD
+          value: "unix11"
+        - name: ZBX_HOSTNAME
+          value: "zproxy-ceph.srv.local"
+        - name: ZBX_SERVER_HOST
+          value: "zabbix.phoenixit.ru"
+      volumes:
+      - name: db
+        persistentVolumeClaim:
+          claimName: zproxy-db-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zproxy-db-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zproxy-service
+spec:
+  selector:
+    app: zproxy
+  ports:
+  - name: tcp
+    protocol: TCP
+    port: 10051
+    targetPort: 10051
+  externalIPs: 
+  - 10.110.27.20
+  - 10.110.27.21
+  - 10.110.27.22
+  - 10.110.27.23
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zproxy-db-service
+spec:
+  selector:
+    app: phpipam
+  ports:
+  - name: mysql   
+    protocol: TCP
+    port: 3306   
+    targetPort: 3306
