@@ -1,0 +1,39 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: phpipam-cron
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: pingcheck
+            image: akrush/phpipam:v3
+            env:
+            - name: IPAM_DATABASE_PASS
+              value: "unix11"
+            - name: IPAM_DATABASE_HOST
+              value: "phpipam-db-service"
+            - name: IPAM_DATABASE_USER
+              value: "root"
+            - name: IPAM_DATABASE_PORT
+              value: "3306"
+            - name: IPAM_DATABASE_NAME
+              value: "phpipam"
+            volumeMounts:
+            - name: www
+              mountPath: "/var/www/html/"
+            args:
+            - /usr/local/bin/php
+            - /var/www/html/functions/scripts/pingCheck.php
+            - /usr/local/bin/php
+            - /var/www/html/functions/scripts/discoveryCheck.php
+          restartPolicy: OnFailure
+          volumes:
+          - name: www
+            hostPath:
+              path: /data/phpipam/www/
+              type: Directory
+

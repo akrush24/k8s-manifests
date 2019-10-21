@@ -1,0 +1,173 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phpipam-deployment
+  labels:
+    app: phpipam
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phpipam
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      name: phpipam-template
+      labels:
+        app: phpipam
+    spec:
+      containers:
+      - name: phpipam
+        image: akrush/phpipam:v3
+        env:
+        - name: IPAM_DATABASE_PASS
+          value: "unix11"
+        - name: IPAM_DATABASE_HOST
+          value: "phpipam-db-service"
+        - name: IPAM_DATABASE_USER
+          value: "root"
+        - name: IPAM_DATABASE_PORT
+          value: "3306"
+        - name: IPAM_DATABASE_NAME
+          value: "phpipam"
+        volumeMounts:
+        - name: www
+          mountPath: "/var/www/html/"
+      - name: mysql
+        image: mysql:5.6
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "unix11"
+        volumeMounts:
+        - name: db
+          mountPath: "/var/lib/mysql/"
+        ports:
+          - containerPort: 3306
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+#        lifecycle:
+#          postStart:
+#            exec:
+#              command: ["/bin/sh", "-c", 'echo \"GRANT ALL ON *.* to root@'%'\"|mysql -uroot']
+      volumes:
+      - name: www
+        hostPath:
+          path: /data/phpipam/www/
+          type: Directory
+      - name: db
+        persistentVolumeClaim:
+          claimName: phpipam-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: phpipam-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phpipam-www-service
+spec:
+  selector:
+    app: phpipam
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phpipam-db-service
+spec:
+  selector:
+    app: phpipam
+  ports:
+  - name: mysql   
+    protocol: TCP
+    port: 3306   
+    targetPort: 3306
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: phpipam-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+#    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  tls:
+  - hosts:
+    - ipam.phoenixit.ru
+    secretName: phx2019
+  rules:
+  - host: ipam.phoenixit.ru
+    http:
+      paths:
+      - backend:
+          serviceName: phpipam-www-service
+          servicePort: 80
+  - host: ipam.k8s.srv.local
+    http:
+      paths:
+      - backend:
+          serviceName: phpipam-www-service
+          servicePort: 80
+  - host: ipam.srv.local
+    http:
+      paths:
+      - backend:
+          serviceName: phpipam-www-service
+          servicePort: 80
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: phpipam-cron
+spec:
+  schedule: "*/10 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: ping
+            image: akrush/phpipam:v3
+            env:
+            - name: IPAM_DATABASE_PASS
+              value: "unix11"
+            - name: IPAM_DATABASE_HOST
+              value: "phpipam-db-service"
+            - name: IPAM_DATABASE_USER
+              value: "root"
+            - name: IPAM_DATABASE_PORT
+              value: "3306"
+            - name: IPAM_DATABASE_NAME
+              value: "phpipam"
+            volumeMounts:
+            - name: www
+              mountPath: "/var/www/html/"
+            args:
+            - /usr/local/bin/php
+            - /var/www/html/functions/scripts/pingCheck.php
+          restartPolicy: OnFailure
+          volumes:
+          - name: www
+            hostPath:
+              path: /data/phpipam/www/
+              type: Directory
