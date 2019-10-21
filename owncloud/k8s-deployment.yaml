@@ -1,0 +1,102 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: owncloud-deployment
+  labels:
+    app: owncloud
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: owncloud
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      name: owncloud-template
+      labels:
+        app: owncloud
+    spec:
+      containers:
+      - name: owncloud
+        image: owncloud:latest
+      - name: mysql
+        image: mysql:5.6
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          value: "unix11"
+        volumeMounts:
+        - name: db
+          mountPath: "/var/lib/mysql/"
+        ports:
+          - containerPort: 3306
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+      volumes:
+      - name: db
+        persistentVolumeClaim:
+          claimName: owncloud-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: owncloud-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: owncloud-www-service
+spec:
+  selector:
+    app: owncloud
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: owncloud-db-service
+spec:
+  selector:
+    app: owncloud
+  ports:
+  - name: mysql   
+    protocol: TCP
+    port: 3306   
+    targetPort: 3306
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: owncloud-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+#    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  tls:
+  - hosts:
+    - owncloud.k8s.phoenixit.ru
+    secretName: phx2019
+  rules:
+  - host: owncloud.k8s.phoenixit.ru
+    http:
+      paths:
+      - backend:
+          serviceName: owncloud-www-service
+          servicePort: 80
