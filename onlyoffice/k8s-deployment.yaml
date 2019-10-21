@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onlyoffice-deployment
+  labels:
+    app: onlyoffice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: onlyoffice
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      name: onlyoffice-template
+      labels:
+        app: onlyoffice
+    spec:
+      containers:
+      - name: office
+        image: onlyoffice/documentserver:latest
+#        volumeMounts:
+#        - name: cache
+#          mountPath: "/var/lib/onlyoffice/documentserver/App_Data/cache2/"
+#      volumes:
+#      - name: cache
+#        persistentVolumeClaim:
+#          claimName: onlyoffice-pvc
+
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: onlyoffice-pvc
+spec:
+  accessModes:
+    - ReadOnlyMany
+  resources:
+    requests:
+      storage: 512Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: onlyoffice-service
+  labels:
+    run: onlyoffice
+spec:
+  selector:
+    app: onlyoffice
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 80
+  type: ClusterIP
+#  externalIPs:
+#  - 192.168.245.64
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: onlyoffice-ingress
+spec:
+  tls:
+  - hosts:
+    - office.phoenixit.ru
+    secretName: phx2019
+  rules:
+  - host: office.phoenixit.ru
+    http:
+      paths:
+      - backend:
+          serviceName: onlyoffice-service
+          servicePort: 80
