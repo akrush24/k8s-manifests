@@ -157,7 +157,6 @@ spec:
     spec:
       containers:
       - name: kibana-logging
-        #image: docker.elastic.co/kibana/kibana-oss:7.2.0
         image: docker.elastic.co/kibana/kibana-oss:7.4.1
         resources:
           # need more cpu upon initialization, therefore burstable class
@@ -214,6 +213,12 @@ metadata:
     kubernetes.io/ingress.class: nginx
     nginx.ingress.kubernetes.io/ssl-passthrough: "true"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # type of authentication
+    nginx.ingress.kubernetes.io/auth-type: "basic"
+    # name of the secret that contains the user/password definitions
+    nginx.ingress.kubernetes.io/auth-secret: basic-auth
+    # message to display with an appropriate context why the authentication is required
+    nginx.ingress.kubernetes.io/auth-realm: 'Authentication Required - admin'
 spec:
   tls:
   - hosts:
@@ -226,3 +231,17 @@ spec:
       - backend:
           serviceName: kibana-logging
           servicePort: 5601
+  - host: kibana.phoenixit.ru
+    http:
+      paths:
+      - backend:
+          serviceName: kibana-logging
+          servicePort: 5601
+---
+apiVersion: v1
+data:
+  auth: YWRtaW46JGFwcjEkNmxLSmZsZXkkTTUzTkl6cXUxRXBCR21zNTlSaUthLwo=
+kind: Secret
+metadata:
+  name: basic-auth
+type: Opaque
