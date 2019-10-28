@@ -23,6 +23,17 @@ spec:
       containers:
       - name: owncloud
         image: owncloud:latest
+        env:
+        - name: OW_DATABASE_PASS
+          value: "unix11"
+        - name: OW_DATABASE_HOST
+          value: "mysql-db-service"
+        - name: OW_DATABASE_USER
+          value: "root"
+        - name: OW_DATABASE_PORT
+          value: "3306"
+        - name: OW_DATABASE_NAME
+          value: "owncloud"
       - name: mysql
         image: mysql:5.6
         env:
