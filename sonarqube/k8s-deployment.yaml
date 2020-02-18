@@ -1,0 +1,137 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarqube-deployment
+  labels:
+    app: sonarqube
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sonarqube
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      name: sonarqube-template
+      labels:
+        app: sonarqube
+    spec:
+      initContainers:
+      - name: volume-mount-hack
+        image: busybox
+        command: ["sh", "-c", "chown -R 999:999 /opt/sonarqube/"]
+        volumeMounts:
+        - name: sonarqube-extensions
+          mountPath: "/opt/sonarqube/extensions"
+        - name: sonarqube-logs
+          mountPath: "/opt/sonarqube/logs"
+        - name: sonarqube-data
+          mountPath: "/opt/sonarqube/data"   
+      containers:
+      - name: sonarqube
+        image: sonarqube:latest
+        env:
+        - name: sonar.jdbc.username
+          value: "sonar"
+        - name: sonar.jdbc.password
+          value: "sonar"
+        volumeMounts:
+       # - name: sonarqube-conf
+        #  mountPath: "/opt/sonarqube/conf"
+        - name: sonarqube-extensions
+          mountPath: "/opt/sonarqube/extensions"
+        - name: sonarqube-logs
+          mountPath: "/opt/sonarqube/logs"
+        - name: sonarqube-data
+          mountPath: "/opt/sonarqube/data" 
+      #  - name: config
+       #   mountPath: "/opt/sonarqube2/conf"
+      volumes:
+      - name: sonarqube-extensions
+        persistentVolumeClaim:
+          claimName: sonarqube-extensions
+      - name: sonarqube-logs
+        persistentVolumeClaim:
+          claimName: sonarqube-logs
+      - name: sonarqube-data
+        persistentVolumeClaim:
+          claimName: sonarqube-data
+                
+#- configMap:
+      #  defaultMode: 420
+      #    name: sonarqube.conf
+      #  name: config
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarqube-extensions
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarqube-logs
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sonarqube-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarqube-www-service
+spec:
+  selector:
+    app: sonarqube
+  ports:
+  - name: http
+    protocol: TCP
+    port: 9000
+    targetPort: 9000
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: sonarqube-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+#    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  tls:
+  - hosts:
+    - sonarqube.phoenixit.ru
+    secretName: phx2019
+  rules:
+  - host: sonarqube.phoenixit.ru
+    http:
+      paths:
+      - backend:
+          serviceName: sonarqube-www-service
+          servicePort: 9000
+---
