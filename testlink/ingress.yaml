@@ -1,0 +1,27 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-passthrough: "true"
+  name: testlink-ingress
+spec:
+  rules:
+  - host: testlink.phoenixit.ru
+    http:
+      paths:
+      - backend:
+          serviceName: ignorant-chicken-testlink-www-service
+          servicePort: 9000
+  tls:
+  - hosts:
+    - testlink.phoenixit.ru
+    secretName: phx2019
+status:
+  loadBalancer:
+    ingress:
+    - ip: 192.168.245.125
+    - ip: 192.168.245.42
+    - ip: 192.168.245.64
+    - ip: 192.168.245.66
