@@ -1,0 +1,16 @@
+apiVersion: v1
+data:
+  telegraf.conf: "[global_tags]\n[agent]\n  interval = \"300s\"\n  round_interval
+    = true\n  metric_batch_size = 1000\n  metric_buffer_limit = 40000\n  collection_jitter
+    = \"0s\"\n  flush_interval = \"10s\"\n  flush_jitter = \"0s\"\n  precision = \"\"\n
+    \ hostname = \"\"\n  omit_hostname = false\n[[outputs.influxdb]]\nurls = [\"http://172.24.1.36:8086\"]\n[[inputs.vsphere]]\n
+    \ interval = \"60s\"\n  vcenters = [ \"vcsa.srv.local\", \"vc-linx.srv.local\",
+    \"vc-khut.srv.local\"]\n  username = \"administrator@vsphere.local\"\n  password
+    = \"Bsdserver$4$5\"\n  insecure_skip_verify = true\n  force_discover_on_init =
+    true\n  vm_metric_include = []\n  datastore_metric_include = [ \"disk.capacity.latest\",
+    \"disk.used.latest\", \"disk.provisioned.latest\" ]\n  datacenter_metric_include
+    = []  \n  cluster_metric_include = []   \n  host_metric_include = []\n  object_discovery_interval
+    = \"300s\"\n  collect_concurrency = 1\n  discover_concurrency = 1\n"
+kind: ConfigMap
+metadata:
+  name: telegraf-config
